@@ -1,0 +1,16 @@
+<launch>
+    
+    <arg name="odom_topic" default="/vins_simulator/noise/odom"/>
+    <arg name="imu_topic" default="/vins_simulator/noise/imu"/>
+    <arg name="vel_topic" default="/vins_simulator/noise/vel"/>
+    <arg name="g_scale" default="1"/>
+
+    <node pkg="eskf_fusion" type="run_ekf_fusion_node" name="ekf_interface_fusion_node" output="screen">
+        <param name="imu_topic"    value="$(arg imu_topic)" />
+        <param name="odom_topic"   value="$(arg odom_topic)" />
+        <param name="vel_topic"    value="$(arg vel_topic)" />
+
+        <rosparam file="$(find eskf_fusion)/config/ekf_fusion.yaml" />
+    </node>
+
+</launch>

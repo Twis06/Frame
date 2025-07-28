@@ -1,0 +1,30 @@
+<launch>
+    <arg name="odom_topic" default="/far_vins_node/optimization_pose"/>
+    <arg name="imu_topic" default="/mavros/imu/data"/>
+    <arg name="optical_flow_topic" default="/mavros/px4flow/raw/optical_flow_rad"/>
+    <arg name="g_scale" default="1"/>
+
+    <node pkg="eskf_fusion" type="run_ekf_fusion_v1" name="ekf_fusion" output="screen">
+        <param name="imu_topic" value="$(arg imu_topic)" />
+        <param name="odom_topic" value="$(arg odom_topic)" />
+        <param name="optical_flow_topic" value="$(arg optical_flow_topic)" />
+
+        <param name="lvio_pos_noise" type="double" value="0.01" />
+        <param name="lvio_angle_noise" type="double" value="0.01" />
+
+        <param name="acce_var" type="double" value="2.0" />
+        <param name="gyro_var" type="double" value="0.1" />
+        <param name="bias_acce_var" type="double" value="0.005" />
+        <param name="bias_gyro_var" type="double" value="0.0005" />
+
+        <param name="g_scale" type="double" value="$(arg g_scale)" />
+        
+        <param name="update_bias_acc" type="bool" value="false" />
+        <param name="update_bias_gyr" type="bool" value="false" />
+
+        <param name="vel_xy_noise" type="double" value="0.5" />
+        <param name="vel_z_noise" type="double"  value="0.6" />
+
+    </node>
+
+</launch>

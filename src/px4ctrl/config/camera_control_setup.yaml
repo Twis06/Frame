@@ -1,0 +1,29 @@
+num_gaps: 1
+# mask_color: ["w", "r"]
+mask_color: ["w"]
+# mask_color: ["w", "r", "b"]
+
+use_tensorrt: false
+only_photo: false
+visualization: true
+
+auto_stop: true
+use_mocap_q: false
+roll_compensation: 0
+pitch_compensation: 0 # pitch works
+
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_real_104.pt"
+# model_path: "/home/nv/px4_policy_deploy_plus/src/px4ctrl/scripts/models/actor_weifen_trick.pt"
+model_path: "/home/nv/px4_policy_deploy_plus/src/px4ctrl/scripts/models/actor_weifen_low_delay.pt"
+
+if_rgb: true
+camera_config: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/camera_config"
+exposure_time: 4000
+width: 1280
+height: 1024
+# camera_config: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/camera_config_rgb"
+
+hidden_dim: 96
+
+last_gap_position: [0.1, 0.0, 1.5]
+  

@@ -1,0 +1,70 @@
+student: true
+
+visualize_only: false
+onboard: false
+
+use_tensorrt: false
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_real_104.pt"
+model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_50_-10_-45_scratch.pt"
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_45_-30_45.pt"
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_30_-30_30.pt"
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_45_-30_45_new.pt"
+# model_path: "/home/nv/px4_policy_deploy/src/px4ctrl/scripts/models/actor_50_-10_-45_new.pt"
+
+hidden_dim: 96
+
+use_velocity: false
+use_mocap_q: true
+
+roll_compensation: -0.0174444
+pitch_compensation: -0.0172111
+
+gap_geometry:
+  inner_vertices: 
+    - [0.0, 0.32, 0.11]
+    - [0.0, -0.32, 0.11]
+    - [0.0, -0.32, -0.11]
+    - [0.0, 0.32, -0.11]
+  outer_vertices:  
+    - [0.0, 0.41, 0.15]
+    - [0.0, -0.41, 0.15]
+    - [0.0, -0.41, -0.15]
+    - [0.0, 0.41, -0.15]
+
+gap_pose:
+  # position: [0.0, 0.0, 1.5]
+  # orientation: [60.0, 0.0, 0.0]
+
+  # position: [-0.5, 0.0, 1.5,
+  #            0.9, -0.60, 1.5,
+  #            2.3, -0.05, 1.5]
+
+  position: [0.0, 0.0, 1.5,
+             1.05, -0.10, 1.45,
+             1.85, -0.00, 1.4]
+
+
+  # position: [0.0, 0.0, 1.5,
+  #            0.9, -0.40, 1.5,
+  #            1.8, -0.05, 1.5]
+
+  # orientation: [45.0, 0.0, 0.0,
+  #               -30.0, 0.0, 0.0,
+  #               45.0, 0.0, 0.0]
+
+  orientation: [50.0, 0.0, 0.0,
+                -10.0, 0.0, 0.0,
+                -45.0, 0.0, 0.0]
+
+  # position: [0.0, 0.0, 1.5,
+  #            0.75, -0.00, 1.45]
+  
+  # orientation: [60.0, 0.0, 0.0,
+  #               45.0, 0.0, 0.0]
+  
+pixel:
+  # shape: [1, 256, 256]
+  shape: [1, 256, 320]
+  extristic: [0.0, 0.0, -0.0]
+  visualize: true
+  binary: true

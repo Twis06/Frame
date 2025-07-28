@@ -1,0 +1,14 @@
+<launch>
+	
+  <!-- <arg name="odom_topic" default="/ekf_interface_fusion_node/fusion_odom"/> -->
+  <arg name="odom_topic" default="/drone/odom_propagate"/>
+				
+  <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl" output="screen">
+			<remap from="~odom" to="$(arg odom_topic)" />
+			<remap from="~cmd" to="/position_cmd" />
+
+        <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_nnpolicy_hil.yaml" />
+	</node>
+ 
+</launch>
+
