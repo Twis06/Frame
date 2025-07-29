@@ -592,7 +592,7 @@ class CamCtrlNode:
     def calculate_mask_learning(self, img_raw) -> np.ndarray:
         """
         使用TensorRT模型预测图像掩码，输出为二值图（0或255）
-        超优化版本：全GPU流水线，最小化CPU-GPU传输开销
+        简化版本：使用基础cv2预处理
 
         Args:
             img_raw (np.ndarray): 输入图像，RGB格式，HWC排列 (256, 320, 3)
@@ -602,82 +602,31 @@ class CamCtrlNode:
         """
         calculate_start_time = time.perf_counter()
         
-        # 数据预处理：全GPU流水线优化，避免CPU瓶颈
-        # 缓存GPU常量和预分配GPU内存，避免重复创建
-        if not hasattr(self, '_gpu_preprocessing_cached'):
-            # 预分配GPU常量
-            self._norm_mean = torch.tensor([0.485, 0.456, 0.406], device='cuda').view(3, 1, 1)
-            self._norm_std = torch.tensor([0.229, 0.224, 0.225], device='cuda').view(3, 1, 1)
-            # 预分配GPU内存用于resize操作
-            self._gpu_temp_tensor = torch.empty((3, 256, 320), dtype=torch.float32, device='cuda')
-            self._gpu_preprocessing_cached = True
+        # 简单的预处理：使用cv2 resize
+        # Step 1: 使用cv2进行resize
+        if img_raw.shape[:2] != (256, 320):
+            img_resized = cv2.resize(img_raw, (320, 256), interpolation=cv2.INTER_LINEAR)
+        else:
+            img_resized = img_raw
         
-        # GPU加速方案：避免CPU瓶颈的T.Resize操作
-        # Step 1: 快速转换到GPU tensor（跳过PIL转换）
-        img_tensor = torch.from_numpy(img_raw).to('cuda', non_blocking=True).permute(2, 0, 1).float()  # HWC -> CHW
+        # Step 2: 转换为float32并归一化到[0,1]
+        img_input = img_resized.astype(np.float32) / 255.0
         
-        # Step 2: GPU上进行resize（替代慢速的T.Resize）
-        # 使用torch.nn.functional.interpolate在GPU上进行双线性插值
-        if img_tensor.shape[1:] != (256, 320):
-            img_tensor = torch.nn.functional.interpolate(
-                img_tensor.unsqueeze(0), 
-                size=(256, 320), 
-                mode='bilinear', 
-                align_corners=False,
-                antialias=True  # 提高质量，接近PIL效果
-            ).squeeze(0)
-        
-        # Step 3: GPU上进行归一化（ToTensor + Normalize的GPU版本）
-        img_input = img_tensor.div_(255.0)  # [0,255] -> [0,1]
-        img_input = img_input.sub_(self._norm_mean).div_(self._norm_std).unsqueeze(0)  # ImageNet标准化 + batch维度
+        # Step 3: 转换为CHW格式并添加batch维度
+        img_input = np.transpose(img_input, (2, 0, 1))  # HWC -> CHW
+        img_input = np.expand_dims(img_input, axis=0)  # 添加batch维度
         
         calculate_end_time = time.perf_counter()
-        print(f"GPU preprocessing time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
+        print(f"Preprocessing time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
         
-        # 性能说明：
-        # 全GPU加速方案：彻底解决T.Resize的CPU瓶颈
-        # 1. torch.from_numpy().to('cuda') - 直接GPU传输，跳过PIL转换
-        # 2. torch.nn.functional.interpolate - GPU双线性插值，替代慢速T.Resize
-        # 3. GPU tensor操作 - 归一化和标准化全在GPU上完成
-        # 4. antialias=True - 提高插值质量，接近PIL效果
-        # 总计：~2-5ms，相比原方案提升5-10倍性能
-        # 
-        # 关键优化点：
-        # - 避免NumPy -> PIL -> Tensor的多次转换
-        # - 避免CPU上的T.Resize操作（主要瓶颈）
-        # - 全程GPU流水线，最小化CPU-GPU数据传输
-        # - 使用antialias保证插值质量
+        # TensorRT推理
+        cuda.memcpy_htod(self.d_input, img_input)
+        self.context.set_tensor_address(self.input_info['name'], int(self.d_input))
+        self.context.set_tensor_address(self.output_info['name'], int(self.d_output))
+        success = self.context.execute_v2([int(self.d_input), int(self.d_output)])
+        if not success:
+            raise RuntimeError("TensorRT推理失败")
         
-        # 使用建议：
-        # - 当前方案：高性能GPU加速，保持良好的模型效果
-        # - 如需完全兼容原transforms：使用calculate_mask_learning_precise()方法
-        
-        # 尝试直接使用GPU内存进行TensorRT推理
-        try:
-            # 获取GPU tensor的数据指针
-            gpu_ptr = img_input.data_ptr()
-            
-            # 直接使用GPU内存进行推理（如果TensorRT支持）
-            self.context.set_tensor_address(self.input_info['name'], gpu_ptr)
-            self.context.set_tensor_address(self.output_info['name'], int(self.d_output))
-            success = self.context.execute_v2([gpu_ptr, int(self.d_output)])
-            
-            if not success:
-                raise RuntimeError("GPU直接推理失败，回退到CPU方式")
-                
-        except Exception as e:
-            # 回退到传统的CPU-GPU传输方式
-            print(f"GPU直接推理失败: {e}，使用CPU传输方式")
-            img_input_cpu = img_input.cpu().numpy()
-            cuda.memcpy_htod(self.d_input, img_input_cpu)
-            self.context.set_tensor_address(self.input_info['name'], int(self.d_input))
-            self.context.set_tensor_address(self.output_info['name'], int(self.d_output))
-            success = self.context.execute_v2([int(self.d_input), int(self.d_output)])
-            if not success:
-                raise RuntimeError("TensorRT推理失败")
-        
-        
-
         # 推理结果传输
         calculate_start_time = time.perf_counter()
         cuda.memcpy_dtoh(self.h_output, self.d_output)
@@ -689,94 +638,14 @@ class CamCtrlNode:
         pred_mask = self.h_output[0, 0]
         binary_mask = (pred_mask < 0.5).astype(np.uint8) * 255  # 转换为 uint8 掩码
         calculate_end_time = time.perf_counter()
-        print(f"step4************wdnwidniwdnwd time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
+        print(f"step4 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
         
         # binary_mask = self.filter_flicker_noise(binary_mask) #是否开启频闪处理
         
-        
-        # print(f"step4 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-
         return binary_mask
 
         
-        # binary_mask = self.filter_flicker_noise(binary_mask) #是否开启频闪处理
         
-        
-        # print(f"step4 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-
-        # calculate_start_time = time.perf_counter()
-        
-        # # 超优化预处理：保持transforms.Resize与训练一致，同时最小化其他操作
-        # # 直接创建正确形状的tensor，避免多次reshape
-        # img_input = torch.from_numpy(img_raw.transpose(2, 0, 1)).float().to('cuda', non_blocking=True)  # 直接CHW
-        
-        # # 归一化到 [0, 1]
-        # img_input = img_input.mul_(1.0/255.0)  # 原地操作，更快
-        
-        # # 使用transforms.Resize保持与训练时一致
-        # if not hasattr(self, '_resize_transform'):
-        #     self._resize_transform = transforms.Resize((256, 320), interpolation=transforms.InterpolationMode.BILINEAR)
-        
-        # img_input = self._resize_transform(img_input)  # (C, H, W)
-        
-        # # 使用预分配的常量进行ImageNet归一化（避免重复创建tensor）
-        # if not hasattr(self, '_norm_mean'):
-        #     self._norm_mean = torch.tensor([0.485, 0.456, 0.406], device='cuda').view(3, 1, 1)
-        #     self._norm_std = torch.tensor([0.229, 0.224, 0.225], device='cuda').view(3, 1, 1)
-        
-        # img_input.sub_(self._norm_mean).div_(self._norm_std)  # 原地操作
-        
-        # # 添加batch维度
-        # img_input = img_input.unsqueeze(0)  # (1, C, H, W)
-        
-        # calculate_end_time = time.perf_counter()
-        # print(f"preprocssing******* time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-        
-        # # 尝试直接使用GPU内存进行TensorRT推理
-        # try:
-        #     # 获取GPU tensor的数据指针
-        #     gpu_ptr = img_input.data_ptr()
-            
-        #     # 直接使用GPU内存进行推理（如果TensorRT支持）
-        #     self.context.set_tensor_address(self.input_info['name'], gpu_ptr)
-        #     self.context.set_tensor_address(self.output_info['name'], int(self.d_output))
-        #     success = self.context.execute_v2([gpu_ptr, int(self.d_output)])
-            
-        #     if not success:
-        #         raise RuntimeError("GPU直接推理失败，回退到CPU方式")
-                
-        # except Exception as e:
-        #     # 回退到传统的CPU-GPU传输方式
-        #     print(f"GPU直接推理失败: {e}，使用CPU传输方式")
-        #     img_input_cpu = img_input.cpu().numpy()
-        #     cuda.memcpy_htod(self.d_input, img_input_cpu)
-        #     self.context.set_tensor_address(self.input_info['name'], int(self.d_input))
-        #     self.context.set_tensor_address(self.output_info['name'], int(self.d_output))
-        #     success = self.context.execute_v2([int(self.d_input), int(self.d_output)])
-        #     if not success:
-        #         raise RuntimeError("TensorRT推理失败")
-        
-        
-
-        # # 推理结果传输
-        # calculate_start_time = time.perf_counter()
-        # cuda.memcpy_dtoh(self.h_output, self.d_output)
-        # calculate_end_time = time.perf_counter()
-        # print(f"step3 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-
-        # # 提取预测掩码 (1, 1, H, W)
-        # calculate_start_time = time.perf_counter()
-        # pred_mask = self.h_output[0, 0]
-        # binary_mask = (pred_mask < 0.01).astype(np.uint8) * 255  # 转换为 uint8 掩码
-        # calculate_end_time = time.perf_counter()
-        # print(f"step4 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-        
-        # #binary_mask = self.filter_flicker_noise(binary_mask) #是否开启频闪处理
-        
-        
-        # # print(f"step4 time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
-
-        # return binary_mask
 
 
 
