@@ -603,7 +603,7 @@ class CamCtrlNode:
         """
         calculate_start_time = time.perf_counter()
         
-        # 简单的预处理：使用cv2 resize
+        # 简单的预处理：使用cv2 resize 可能需要优化时间 55fps
         # Step 1: 使用cv2进行resize
         if img_raw.shape[:2] != (256, 320):
             img_resized = cv2.resize(img_raw, (640, 512), interpolation=cv2.INTER_LINEAR) #魔法
