@@ -1,0 +1,14 @@
+bag/
+bag_new/
+recovered_blobs/
+*.bag
+*.pt
+*.onnx
+*.zip
+build/
+devel/
+*.jpg
+*.png
+*.jpeg
+.Ds_Store
+*.log

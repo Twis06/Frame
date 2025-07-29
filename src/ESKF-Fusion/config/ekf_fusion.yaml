@@ -1,0 +1,26 @@
+fusion_odom: true
+fusion_vel: true
+fusion_optical_flow: true
+
+traj_name: "ekf_fusion.txt"
+
+pos_priori_cov: 0.0001
+rot_priori_cov: 0.0000001
+vel_priori_cov: 0.00001
+bg_bias_priori_cov: 0.000001
+ba_bias_priori_cov: 0.00001
+
+optical_flow_vel_xy_noise: 0.3
+optical_flow_vel_z_noise: 0.1
+
+odom_pos_noise: 0.1
+odom_angle_noise: 0.01
+odom_vel_noise: 0.01
+
+imu_acc_var: 0.5
+imu_gyro_var: 0.02
+imu_acc_bias_var: 0.002
+imu_gyro_bias_var: 0.0002
+
+g_scale: 9.81
+

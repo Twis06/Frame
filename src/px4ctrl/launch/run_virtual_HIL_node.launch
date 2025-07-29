@@ -1,0 +1,8 @@
+<launch>
+    <!-- Load parameters from yaml files -->
+    <rosparam command="load" file="$(find px4ctrl)/config/gap_pixel_setup.yaml" />
+
+    <!-- Launch the HIL node -->
+    <node pkg="px4ctrl" type="virtual_HIL_node.py" name="hil_node" output="screen"/> 
+    <!-- launch-prefix="$(env CONDA_PREFIX)/bin/python3"/> -->
+</launch>

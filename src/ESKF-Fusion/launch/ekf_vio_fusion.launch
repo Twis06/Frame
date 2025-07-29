@@ -1,0 +1,22 @@
+<launch>
+    
+    <node pkg="eskf_fusion" type="run_eskf_lio" name="eskf_lio_node" output="screen">
+        <param name="odom_topic" type="string" value="/far_vins_node/optimization_pose" />
+        <param name="imu_topic" type="string" value="/mavros/imu/data" />
+
+        <param name="lvio_pos_noise" type="double" value="0.01" />
+        <param name="lvio_angle_noise" type="double" value="0.01" />
+
+        <param name="acce_var" type="double" value="0.6" />
+        <param name="gyro_var" type="double" value="0.05" />
+        <param name="bias_acce_var" type="double" value="0.01" />
+        <param name="bias_gyro_var" type="double" value="0.0005" />
+
+        <param name="g_norm" type="double" value="9.81" />
+        
+        <param name="update_bias_acc" type="bool" value="false" />
+        <param name="update_bias_gyr" type="bool" value="false" />
+
+    </node>
+
+</launch>

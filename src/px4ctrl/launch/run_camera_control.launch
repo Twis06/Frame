@@ -1,0 +1,7 @@
+<launch>
+    <!-- Load parameters from yaml files -->
+    <rosparam command="load" file="$(find px4ctrl)/config/camera_control_setup.yaml" />
+
+    <!-- Launch the HIL node -->
+    <node pkg="px4ctrl" type="camera_control.py" name="cam_ctrl" output="screen"/>
+</launch>

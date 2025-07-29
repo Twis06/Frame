@@ -1,0 +1,6 @@
+<launch>
+
+  <!-- RVIZ -->
+  <node name="far_rviz" pkg="rviz" type="rviz" args=" -d $(find eskf_fusion)/config/eskf.rviz" />
+
+</launch>
