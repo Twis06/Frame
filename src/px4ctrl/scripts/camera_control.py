@@ -142,7 +142,7 @@ class CamCtrlNode:
         self.exposure_time = rospy.get_param('exposure_time')
 
         #self.engine_path ="/home/nv/m_unet_trt/trt_engine/trt_tiny/mobilenetv2_unet_tiny_fp16.trt"
-        self.engine_path="/home/nv/m_unet_trt/trt_engine/trt_normal/mobilenetv2_unet_fp16.trt"            #量化加速后的模型替换位置
+        self.engine_path="/home/nv/m_unet_trt/trt_engine/trt_normal/mobilenetv2_unet_fp16.trt"
         self.batch_size = 1
         self.logger = trt.Logger(trt.Logger.WARNING)
         self.runtime = trt.Runtime(self.logger)
@@ -515,10 +515,32 @@ class CamCtrlNode:
                     #     self.index+=1
                     img_raw = cv2.resize(img_raw, (320, 256), cv2.INTER_AREA)  # downsampling
 
+                    # r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+                    # img = (r > 20) & (g < 80) & (b < 80)  # TODO: check img type
+                    # img = img.astype(np.uint8) * 255
+                    calculate_start_time = time.perf_counter()
+                    # with self.cuda_thread_context():
+                    #     img = self.calculate_mask_learning(img_raw)
+                    img=self.calculate_mask_hsv(img_raw)
+                    calculate_end_time = time.perf_counter()
+
+                    # print (f"******************* time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms") 
+
+
+                    img = self.update_gap_id(img_raw, img)
                     
-                
+                # cv2.imwrite('img_%d.jpg' % stOutFrame.stFrameInfo.nFrameNum, img)
+                if self.visualze:  # visualize the mask
+                    img_msg = self.bridge.cv2_to_imgmsg(img, encoding="mono8")
+                    self.image_pub.publish(img_msg)
+
+                img = img / 255.0  # normalize to 0-1
+
+                # cv2.imshow('img_.jpg', img)
+                # cv2.waitKey(1)
+
                 with self.img_ready:
-                    self.latest_img = img_raw
+                    self.latest_img = img
                     self.img_ready.notify()
 
                 end_time = time.perf_counter()
@@ -711,38 +733,12 @@ class CamCtrlNode:
             
     def control_thread(self):
         while not self.g_bExit:
-            img = None
             with self.img_ready:
                 self.img_ready.wait(timeout=INTERVAL+0.01)
                 try:
                     start_time = time.perf_counter()
                     
-                    img_raw = self.latest_img
-                    
-                    # r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
-                    # img = (r > 20) & (g < 80) & (b < 80)  # TODO: check img type
-                    # img = img.astype(np.uint8) * 255
-                    calculate_start_time = time.perf_counter()
-                    with self.cuda_thread_context():
-                        img = self.calculate_mask_learning(img_raw)
-                    #img=self.calculate_mask_hsv(img_raw)
-                    calculate_end_time = time.perf_counter()
-
-                    print (f"******************* time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms") 
-
-                    img = self.update_gap_id(img_raw, img)     #useless?
-
-                    # cv2.imwrite('img_%d.jpg' % stOutFrame.stFrameInfo.nFrameNum, img)
-                    if self.visualze:  # visualize the mask
-                        img_msg = self.bridge.cv2_to_imgmsg(img, encoding="mono8")
-                        self.image_pub.publish(img_msg)
-
-                    img = img / 255.0  # normalize to 0-1
-
-                    # cv2.imshow('img_.jpg', img)
-                    # cv2.waitKey(1)
-
-
+                    img = self.latest_img
                     # rospy.loginfo(f"Retrived image shape: {img.shape}")
 
                     # if self.only_photo and self.visualze:
@@ -755,10 +751,10 @@ class CamCtrlNode:
                     # rospy.loginfo(f"Retrive image time: {(get_img_time - start_time)*1000:.2f}ms")
                 except Exception as e:
                     rospy.loginfo(f"\033[31mError in control thread: {str(e)}\033[0m")
-                    
+            
             if img is not None:
                 self.latest_img = None
-                img = cv2.resize(img, (320, 256), cv2.INTER_AREA) 
+
                 if self.auto_stop:
                     # if np.sum(img) < 12 and self.stop_counter == 0 and self.euler_cpu[1] > np.pi / 9:
                     #     self.stop_counter = 1
