@@ -800,8 +800,8 @@ class CamCtrlNode:
                     self.image_raw_pub.publish(img_msg)
                     calculate_start_time = time.perf_counter()
                     with self.cuda_thread_context():
-                        # img = self.calculate_mask_learning(img_raw)
-                        img=self.calculate_mask_hsv(img_raw)
+                        img = self.calculate_mask_learning(img_raw)
+                        # img=self.calculate_mask_hsv(img_raw)
                     calculate_end_time = time.perf_counter()
 
                     print (f"******************* time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms") 
