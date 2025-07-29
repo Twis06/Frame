@@ -144,7 +144,8 @@ class CamCtrlNode:
         self.exposure_time = rospy.get_param('exposure_time')
 
         #self.engine_path ="/home/nv/m_unet_trt/trt_engine/trt_tiny/mobilenetv2_unet_tiny_fp16.trt"
-        self.engine_path="/home/nv/m_unet_trt/trt_engine/trt_normal/segmentation_256x320_fp16.trt"            #量化加速后的模型替换位置
+        # self.engine_path="/home/nv/m_unet_trt/trt_engine/trt_normal/segmentation_256x320_fp16.trt"        #量化加速后的模型替换位置
+        self.engine_path="/home/nv/m_unet_trt/trt_engine/trt_normal/new_ultralight_segmentation_256x320_fp16-0729.trt" 
         self.batch_size = 1
         self.logger = trt.Logger(trt.Logger.WARNING)
         self.runtime = trt.Runtime(self.logger)
@@ -605,7 +606,10 @@ class CamCtrlNode:
         # 简单的预处理：使用cv2 resize
         # Step 1: 使用cv2进行resize
         if img_raw.shape[:2] != (256, 320):
-            img_resized = cv2.resize(img_raw, (320, 256), interpolation=cv2.INTER_LINEAR)
+            img_resized = cv2.resize(img_raw, (640, 512), interpolation=cv2.INTER_LINEAR) #魔法
+            img_resized = cv2.resize(img_resized, (320, 256), interpolation=cv2.INTER_LINEAR) #魔法
+            # img_resized = cv2.resize(img_raw, (320, 256), interpolation=cv2.INTER_LINEAR) #原始
+
         else:
             img_resized = img_raw
         
@@ -615,10 +619,9 @@ class CamCtrlNode:
         # Step 3: 转换为CHW格式并添加batch维度
         img_input = np.transpose(img_input, (2, 0, 1))  # HWC -> CHW
         img_input = np.expand_dims(img_input, axis=0)  # 添加batch维度
-        
-        # 确保数组是连续的
+                
         img_input = np.ascontiguousarray(img_input)
-        
+
         calculate_end_time = time.perf_counter()
         print(f"Preprocessing time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
         

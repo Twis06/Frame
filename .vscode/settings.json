@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/home/nv/px4_policy_deploy_plus/src/Utils/uav_utils"
+    "cmake.sourceDirectory": "/home/nv/px4_policy_deploy_plus/src/Utils/uav_utils",
+    "idf.pythonInstallPath": "/Library/Frameworks/Python.framework/Versions/3.9/bin/python3"
 }
