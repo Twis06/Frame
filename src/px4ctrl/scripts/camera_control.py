@@ -616,6 +616,9 @@ class CamCtrlNode:
         img_input = np.transpose(img_input, (2, 0, 1))  # HWC -> CHW
         img_input = np.expand_dims(img_input, axis=0)  # 添加batch维度
         
+        # 确保数组是连续的
+        img_input = np.ascontiguousarray(img_input)
+        
         calculate_end_time = time.perf_counter()
         print(f"Preprocessing time: {(calculate_end_time-calculate_start_time)*1000:.2f}ms")
         
