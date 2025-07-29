@@ -10,3 +10,5 @@ devel/
 *.jpg
 *.png
 *.jpeg
+.Ds_Store
+*.log
